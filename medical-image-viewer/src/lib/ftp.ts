@@ -36,7 +36,7 @@ export class FTPClient {
     return this.client.put(localFile, remoteFile);
   }
 
-  read(remoteFile, localFile) {
+  read(remoteFile, localFile) { 
     return this.client.get(remoteFile, localFile);
   }
 
