@@ -1,19 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import {FTPClient} from '@/lib/ftp'; 
+import {read, explore} from '@/lib/ftp'; 
 import path from 'path';
 import fs from 'fs';
-
-function connect() {
-   return FTPClient.connectFrom(process.env.SFTP_URL).then(connection => connection.keepAlive());
-}
-
-function explore(path) {
-   return connect().then(connection => connection.list(path));
-}
-
-function read(remotePath, localPath) {
-    return connect().then(connection => connection.read(remotePath, localPath));
-}
 
 function index_all_images() {
   const concat_path = (current_path, curr) => path.join(current_path, curr.name);
@@ -38,24 +26,28 @@ function identify(file) {
   return path.join('public', 'images', file.replace("/", "."));
 }
 
+function list_images_from_path(path_consultant) {
+	function memo(public_directory) {
+		return fs.promises.readdir(public_directory).then(files => files.map(file => ({
+			local_location: path.join(public_directory, file)
+		})));
+	}
+	async function query_images(public_directory) {
+		return Promise.all((await global.dfs(path_consultant)).map(async image => {
+			image.local_location = path.join(public_directory, image.name);
+			if (!fs.existsSync(path.dirname(image.local_location))) {
+				fs.mkdirSync(path.dirname(image.local_location), { recursive: true });
+			}
+			await read(image.remote_location, image.local_location);
+			return image;
+		}));
+	}
+	return ((public_directory) => fs.existsSync(public_directory) ? memo(public_directory) : query_images(public_directory))(identify(path_consultant));
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<any>
-) {
-  const public_directory = identify(req.query.path);
-  if (fs.existsSync(public_directory)) {
-	  const files = await fs.promises.readdir(public_directory).then(files => files.map(file => ({
-                  local_location: path.join(public_directory, file)
-	  })));
-	  return res.status(200).json(files);
-  }
-  const images = await global.dfs(req.query.path);
-  await Promise.all(images.map(image => {
-	  image.local_location = path.join(public_directory, image.name);
-	  if (!fs.existsSync(path.dirname(image.local_location))) {
-		  fs.mkdirSync(path.dirname(image.local_location), { recursive: true });
-	  }
-	  return read(image.remote_location, image.local_location);
-  }));
-  res.status(200).json(images);
+) { 
+  res.status(200).json(await list_images_from_path(req.query.path));
 }

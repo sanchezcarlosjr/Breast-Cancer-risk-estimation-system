@@ -1,5 +1,17 @@
 import Client from 'ssh2-sftp-client';
 
+export function connect() {
+   return FTPClient.connectFrom(process.env.SFTP_URL).then(connection => connection.keepAlive());
+}
+
+export function explore(path) {
+   return connect().then(connection => connection.list(path));
+}
+
+export function read(remotePath, localPath) {
+    return connect().then(connection => connection.read(remotePath, localPath));
+}
+
 export class FTPClient {
   constructor() {
     this.client = new Client();
