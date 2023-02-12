@@ -1,0 +1,10 @@
+version: '3'
+
+services:
+  sftp:
+    image: atmoz/sftp
+    volumes:
+        - ./filesystem:/home/sanchezcarlosjr/
+    ports:
+        - "2222:22"
+    command: sanchezcarlosjr:pass:1001
