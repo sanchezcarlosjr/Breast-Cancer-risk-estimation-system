@@ -16,7 +16,7 @@ function read(remotePath, localPath) {
 }
 
 function index_all_images() {
-  const concat_path = (path, curr) => path + `/${curr.name}`;
+  const concat_path = (current_path, curr) => path.join(current_path, curr.name);
   const add_location = (obj, location) => {
 	  obj['remote_location'] = location
 	  return obj;
@@ -34,25 +34,28 @@ function index_all_images() {
 
 global.dfs = index_all_images();
 
+function identify(file) {
+  return path.join('public', 'images', file.replace("/", "."));
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<any>
 ) {
-  const localPath = `public/images/${req.query.path.replace("/", ".")}`;
-  if (fs.existsSync(localPath)) {
-	  const files = await fs.promises.readdir(localPath).then(files => files.map(file => ({
-                  local_location: `${localPath}/${file}`
+  const public_directory = identify(req.query.path);
+  if (fs.existsSync(public_directory)) {
+	  const files = await fs.promises.readdir(public_directory).then(files => files.map(file => ({
+                  local_location: path.join(public_directory, file)
 	  })));
 	  return res.status(200).json(files);
   }
   const images = await global.dfs(req.query.path);
   await Promise.all(images.map(image => {
-	  const localFile = "public/images/"+req.query.path.replace("/", ".")+"/"+image.name;
-	  image.local_location = localFile;
-	  if (!fs.existsSync(path.dirname(localFile))) {
-		  fs.mkdirSync(path.dirname(localFile), { recursive: true });
+	  image.local_location = path.join(public_directory, image.name);
+	  if (!fs.existsSync(path.dirname(image.local_location))) {
+		  fs.mkdirSync(path.dirname(image.local_location), { recursive: true });
 	  }
-	  return read(image.remote_location, localFile);
+	  return read(image.remote_location, image.local_location);
   }));
   res.status(200).json(images);
 }

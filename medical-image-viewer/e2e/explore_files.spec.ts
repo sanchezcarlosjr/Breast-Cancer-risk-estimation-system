@@ -1,9 +1,10 @@
 import { test, expect, request } from '@playwright/test'
 
-test('should call API', async ({ page }) => {
+test('should list images from SFTP server', async ({ page }) => {
 	const context = await request.newContext({
 		baseURL: 'http://localhost:3001/api/'
 	});
-	const response = await context.fetch('images?path=1.1/1').then((x) => x.json());
-	console.log(response);
+	const images = await context.fetch('images?path=1.1').then(response => response.json()).then(files =>  files.map(file => file.local_location));
+	expect(images.length).toEqual(9);
+	expect(images).not.toContain(undefined);
 })
